@@ -1,18 +1,23 @@
 package keygopher
 
 import (
+	"os"
 	"syscall"
 	"testing"
 )
 
 func TestNew(t *testing.T) {
-	err, _ := New()
+	defer os.Remove("test.db")
+
+	err, _ := New(&Config{Name: "test"})
 	if err != nil {
-		t.Errorf("Error: %e", err)
+		t.Errorf("Error: %+v", err)
 	}
 }
 func TestWrite(t *testing.T) {
-	err, db := Load("testFile.txt")
+	defer os.Remove("test.db")
+
+	err, db := New(&Config{Name: "test"})
 	if err != nil {
 		t.Errorf("Error while loading: %e, %v", err, syscall.Errno(9))
 	}
@@ -23,12 +28,19 @@ func TestWrite(t *testing.T) {
 	}
 }
 func TestRead(t *testing.T) {
-	err, db := Load("testFile.txt")
+	defer os.Remove("test.db")
+
+	err, db := New(&Config{Name: "test"})
 	if err != nil {
 		t.Errorf("Error while loading: %e, %v", err, syscall.Errno(9))
 	}
 
-	err, r := db.Read("test")
+	err = db.Write("test", "1234")
+	if err != nil {
+		t.Errorf("Error while writing: %e", err)
+	}
+
+	r, err := db.Get("test")
 	if err != nil {
 		t.Errorf("Error while reading: %e", err)
 	}
