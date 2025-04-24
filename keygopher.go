@@ -7,13 +7,14 @@ type DB struct {
 type Engine interface {
 	Write(key, value string) error
 	Get(key string) (string, error)
+	Close() error
 }
 type Config struct {
 	Name           string
 	IndexingMethod func(string) (Engine, error)
 }
 
-func New(cfg *Config) (error, *DB) {
+func New(cfg *Config) (*DB, error) {
 	db := DB{
 		Name: cfg.Name,
 	}
@@ -21,7 +22,7 @@ func New(cfg *Config) (error, *DB) {
 	e, err := InnitSimpleEngine(db.Name)
 	db.Engine = e
 
-	return err, &db
+	return &db, err
 }
 
 func (db *DB) Write(key, value string) error {

@@ -9,7 +9,7 @@ import (
 func TestNew(t *testing.T) {
 	defer os.Remove("test.db")
 
-	err, _ := New(&Config{Name: "test"})
+	_, err := New(&Config{Name: "test"})
 	if err != nil {
 		t.Errorf("Error: %+v", err)
 	}
@@ -17,7 +17,7 @@ func TestNew(t *testing.T) {
 func TestWrite(t *testing.T) {
 	defer os.Remove("test.db")
 
-	err, db := New(&Config{Name: "test"})
+	db, err := New(&Config{Name: "test"})
 	if err != nil {
 		t.Errorf("Error while loading: %e, %v", err, syscall.Errno(9))
 	}
@@ -26,11 +26,15 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error while writing: %e", err)
 	}
+	err = db.Write("test2", "12345")
+	if err != nil {
+		t.Errorf("Error while writing: %e", err)
+	}
 }
 func TestRead(t *testing.T) {
 	defer os.Remove("test.db")
 
-	err, db := New(&Config{Name: "test"})
+	db, err := New(&Config{Name: "test"})
 	if err != nil {
 		t.Errorf("Error while loading: %e, %v", err, syscall.Errno(9))
 	}
