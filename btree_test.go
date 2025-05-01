@@ -105,9 +105,19 @@ func TestBTreeAdd(t *testing.T) {
 
 	for _, k := range keysToAdd {
 		tree.Add(k, k) // Using key as its own value
+		tree.PrintPyramid()		
 		fmt.Println("____________________________________________________")
-		tree.PrintPyramid()
 	}
+	fmt.Println("Final B-tree structure:")
+	tree.PrintPyramid()
+	fmt.Println("First level keys:")
+	fmt.Println(tree.Keys)
+	fmt.Println("Second layer keys:")
+	for _, child := range tree.Children {
+		fmt.Println(child.Keys)
+	}
+	fmt.Println("____________________________________________________")
+
 
 	// Verify that each key is retrievable with its corresponding value.
 	for _, k := range keysToAdd {

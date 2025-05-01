@@ -61,8 +61,8 @@ func (b *BTreeNode) GetNodeByKey(key string) *BTreeNode {
 
 func (b *BTreeNode) InsertChild(node *BTreeNode) error {
 	first_key := node.Keys[0].Name
-	for i, k := range b.Keys {
-		if strings.Compare(k.Name, first_key) > 0 {
+	for i, child := range b.Children {
+		if strings.Compare(child.Keys[0].Name, first_key) > 0 {
 			if i == 0 {
 				b.Children = append([]*BTreeNode{node}, b.Children...)
 				return nil
@@ -70,7 +70,7 @@ func (b *BTreeNode) InsertChild(node *BTreeNode) error {
 			b.Children = append(b.Children[:i], append([]*BTreeNode{node}, b.Children[i:]...)...)
 			return nil
 		}
-		if i == len(b.Keys)-1 {
+		if i == len(b.Children)-1 {
 			b.Children = append(b.Children, node)
 			return nil
 		}
@@ -78,21 +78,51 @@ func (b *BTreeNode) InsertChild(node *BTreeNode) error {
 	return nil;
 }
 
-func splitAtMedian(keys []Key) ([]Key, []Key, Key) {
-	if len(keys) == 0 {
-		return nil, nil, Key{}
+func splitAtMedian(node *BTreeNode) (*BTreeNode, *BTreeNode, Key) {
+	// Ensure keys are in order.
+	sort.Slice(node.Keys, func(i, j int) bool {
+		return strings.Compare(node.Keys[i].Name, node.Keys[j].Name) < 0
+	})
+
+	mid := len(node.Keys) / 2
+	median := node.Keys[mid]
+
+	// Split keys.
+	leftKeys := make([]Key, mid)
+	copy(leftKeys, node.Keys[:mid])
+	rightKeys := make([]Key, len(node.Keys)-mid-1)
+	copy(rightKeys, node.Keys[mid+1:])
+
+	// Split children if present.
+	var leftChildren, rightChildren []*BTreeNode
+	if len(node.Children) > 0 {
+		// In a B-tree, number of children is keys+1.
+		leftChildCount := len(leftKeys) + 1
+		leftChildren = make([]*BTreeNode, leftChildCount)
+		copy(leftChildren, node.Children[:leftChildCount])
+		rightChildren = make([]*BTreeNode, len(node.Children)-leftChildCount)
+		copy(rightChildren, node.Children[leftChildCount:])
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return strings.Compare(keys[i].Name, keys[j].Name) < 0
-	},
-	)
-	mid := len(keys) / 2
-	median := keys[mid]
-	left := make([]Key, mid, len(keys))
-	copy(left, keys[:mid])
-	right := make([]Key, mid, len(keys))
-	copy(right, keys[mid+1:])
-	return left, right, median
+
+	leftNode := &BTreeNode{
+		Parent:   node.Parent,
+		Keys:     leftKeys,
+		Children: leftChildren,
+		Order:    node.Order,
+	}
+	for _, child := range leftNode.Children {
+		child.Parent = leftNode
+	}
+	rightNode := &BTreeNode{
+		Parent:   node.Parent,
+		Keys:     rightKeys,
+		Children: rightChildren,
+		Order:    node.Order,
+	}
+	for _, child := range leftNode.Children {
+		child.Parent = rightNode
+	}
+	return leftNode, rightNode, median
 }
 func (b *BTreeNode) PrintPyramid() {
     // Gather tree levels via BFS.
@@ -168,53 +198,47 @@ func (b *BTreeNode) Search(key string) (string, error) {
 	}
 	return "", fmt.Errorf("key not found 4: %s", key)
 }
+func (b *BTreeNode) AddKey(key Key){
+	if len(b.Keys) < b.Order-1 {
+		b.Keys = append(b.Keys, key)
+		sort.Slice(b.Keys, func(i, j int) bool {
+			return strings.Compare(b.Keys[i].Name, b.Keys[j].Name) < 0
+		},
+		)
+		return
+	}
+	b.Keys = append(b.Keys, key)
+	left, right, median := splitAtMedian(b)
+	fmt.Println("Full keys", b.Keys)
+	fmt.Println("Left keys", left.Keys)
+	fmt.Println("Right keys", right.Keys)
+	fmt.Println("Median key", median)
+	fmt.Println("................................................")
+	if b.Parent != nil {
+		b.Children = left.Children;
+		b.Keys = left.Keys
+		b.Parent.InsertChild(right)
+		b.Parent.AddKey(median)
+		return
+	}
+	b.Keys = make([]Key, 0, b.Order-1)
+	b.Keys = append(b.Keys, median)
+	b.Children = make([]*BTreeNode, 0, b.Order)
+	left.Parent = b
+	right.Parent = b
+	b.Children = append(b.Children, left)
+	b.Children = append(b.Children, right)
+}
+
 func (b *BTreeNode) Add(key string, value string) {
 	node := b.GetNodeByKey(key)
 	fmt.Println("Node to add to:", node)
 	if node == nil {
 		return
 	}
-	if len(node.Keys) < node.Order-1 {
-		node.Keys = append(node.Keys, Key{Name: key, Pointer: value})
-		sort.Slice(node.Keys, func(i, j int) bool {
-			return strings.Compare(node.Keys[i].Name, node.Keys[j].Name) < 0
-		},
-		)
-		return
-	}
-	left, right, median := splitAtMedian(append(node.Keys, Key{Name: key, Pointer: value}))
-	if node.Parent != nil {
-		if len(node.Parent.Keys) < node.Parent.Order-1 {
-			node.Parent.Keys = append(node.Parent.Keys, median)
-			sort.Slice(node.Parent.Keys, func(i, j int) bool {
-				return strings.Compare(node.Parent.Keys[i].Name, node.Parent.Keys[j].Name) < 0
-			},
-			)
-			node.Keys = left;
-			node.Parent.InsertChild(
-				&BTreeNode{
-					Keys:     right,
-					Children: make([]*BTreeNode, 0, node.Order),
-					Parent:   node.Parent,
-					Order:    node.Order,
-				},	
-			)
-			return
-		}
-	}
-	node.Keys = make([]Key, 0, node.Order-1)
-	node.Keys = append(node.Keys, median)
-	node.Children = append(node.Children, &BTreeNode{
-		Keys:     left,
-		Children: make([]*BTreeNode, 0, node.Order),
-		Parent:   node,
-		Order:    node.Order,
-	})
-	node.Children = append(node.Children, &BTreeNode{
-		Keys:     right,
-		Children: make([]*BTreeNode, 0, node.Order),
-		Parent:   node,
-		Order:    node.Order,
+	node.AddKey(Key{
+		Name:    key,
+		Pointer: value,
 	})
 }
 
