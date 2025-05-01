@@ -198,6 +198,7 @@ func (b *BTreeNode) Search(key string) (string, error) {
 	}
 	return "", fmt.Errorf("key not found 4: %s", key)
 }
+
 func (b *BTreeNode) AddKey(key Key){
 	if len(b.Keys) < b.Order-1 {
 		b.Keys = append(b.Keys, key)
@@ -209,11 +210,6 @@ func (b *BTreeNode) AddKey(key Key){
 	}
 	b.Keys = append(b.Keys, key)
 	left, right, median := splitAtMedian(b)
-	fmt.Println("Full keys", b.Keys)
-	fmt.Println("Left keys", left.Keys)
-	fmt.Println("Right keys", right.Keys)
-	fmt.Println("Median key", median)
-	fmt.Println("................................................")
 	if b.Parent != nil {
 		b.Children = left.Children;
 		b.Keys = left.Keys
